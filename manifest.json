@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.shinobix9x.pangolin",
+  "name": "Pangolin",
+  "version": "1.0.0",
+  "author": "ShinobiX9X",
+  "license": "MIT",
+  "description": "Pangolin client status in the bar, with an on/off switch and the state of each site. Unofficial.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Pangolin",
+    "description": "Turn the Pangolin client on or off and see which sites are reachable.",
+    "category": "Network",
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "refreshIntervalSec": 10,
+      "hideWhenOff": false
+    },
+    "schema": [
+      {
+        "key": "refreshIntervalSec",
+        "type": "integer",
+        "label": "Refresh interval (seconds)",
+        "min": 2,
+        "max": 600,
+        "step": 1,
+        "defaultValue": 10
+      },
+      {
+        "key": "hideWhenOff",
+        "type": "boolean",
+        "label": "Hide the icon while the client is off",
+        "defaultValue": false
+      }
+    ]
+  }
+}

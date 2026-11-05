@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Stand-in for sudo, used only while pangolin-ctl.sh runs `pangolin up`.
+#
+# The Pangolin CLI starts its root helper with exactly `sudo sh -c <command>`.
+# This shim forwards that one form to pkexec, so the password is asked in the
+# Omarchy polkit dialog instead of a terminal. Anything else is refused.
+set -euo pipefail
+
+if [[ $# -ne 3 || "$1" != sh || "$2" != -c ]]; then
+  echo "pangolin widget: unexpected sudo call refused" >&2
+  exit 1
+fi
+
+exec pkexec /bin/sh -c "$3"
