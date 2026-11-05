@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
 # Stand-in for sudo, put first on PATH only while `pangolin up` runs.
 #
-# The Pangolin CLI starts its root helper with exactly `sudo sh -c <command>`.
-# Anything else is refused (widget) or handed to the real sudo untouched
-# (terminal).
-#
-# The CLI puts the client ID and secret on the helper's command line
-# (`--id … --secret …`), where any local user can read them with `ps`.
-# The helper also reads them from PANGOLIN_CLIENT_ID / PANGOLIN_CLIENT_SECRET,
-# so they are moved into environment variables (only readable by root in
+# The Pangolin CLI (0.20) starts its root helper with `sudo sh -c <script>`,
+# and puts the client ID and secret in that script as `--id … --secret …`
+# arguments, where any local user can read them with `ps`. The helper also
+# reads them from PANGOLIN_CLIENT_ID / PANGOLIN_CLIENT_SECRET, so they are
+# moved into environment variables (only readable by root in
 # /proc/<pid>/environ), and the script goes to the root shell on stdin
 # instead of on its command line.
+#
+# Fails closed: if a CLI update changes the format so the credentials can't be
+# moved, it refuses to connect rather than expose them. `sudo sh -s` (script
+# already on stdin, as proposed upstream) is passed on as is.
 #
 # PANGOLIN_ELEVATE=pkexec  ask for the password with polkit (the bar widget)
 # PANGOLIN_ELEVATE=sudo    ask with the real sudo in the terminal (default)
@@ -19,7 +20,35 @@ set -euo pipefail
 mode=${PANGOLIN_ELEVATE:-sudo}
 real_sudo=/usr/bin/sudo
 
+case $mode in
+  pkexec) elevate=(pkexec) ;;
+  sudo) elevate=("$real_sudo") ;;
+  *) echo "PANGOLIN_ELEVATE must be pkexec or sudo" >&2; exit 2 ;;
+esac
+
+refuse() {
+  echo "Not connecting: this Pangolin CLI version would put the client ID or secret on the process list. Update the Pangolin plugin, or run 'command pangolin up' to connect anyway." >&2
+  exit 3
+}
+
+# True when the text holds a credential flag (quoted, spaced or --flag=value):
+# any flag with "secret" in its name (also a renamed --client-secret), or
+# --id / --client-id / --olm-id. Not unrelated flags such as --identity or
+# --exit-node-resource-id.
+has_credentials() {
+  local b="(^|[[:space:]\"'])" e="([[:space:]\"'=]|\$)"
+  local secret_re="${b}--[a-z-]*secret${e}" id_re="${b}--(client-|olm-)?id${e}"
+  [[ $1 =~ $secret_re || $1 =~ $id_re ]]
+}
+
+# Script already on stdin: nothing to hide in argv.
+if [[ $# -eq 2 && "$1" == sh && "$2" == -s ]]; then
+  exec "${elevate[@]}" /bin/sh -s
+fi
+
 if [[ $# -ne 3 || "$1" != sh || "$2" != -c ]]; then
+  # Some other sudo call. Never let credentials through in argv.
+  has_credentials "$*" && refuse
   if [[ $mode == sudo ]]; then
     exec "$real_sudo" "$@"
   fi
@@ -43,12 +72,11 @@ move_to_env() {
 move_to_env id PANGOLIN_CLIENT_ID
 move_to_env secret PANGOLIN_CLIENT_SECRET
 
+# Anything left means the format changed: stop instead of leaking.
+has_credentials "$script" && refuse
+
 # Feed the script on stdin and exec, so this process's own command line (which
 # still holds the secret as passed by the CLI) is replaced right away. Both
 # pkexec and sudo ask for the password on their own channel (polkit agent,
 # /dev/tty), not on stdin.
-case $mode in
-  pkexec) exec pkexec /bin/sh -s <<<"${env_prefix}${script}" ;;
-  sudo) exec "$real_sudo" /bin/sh -s <<<"${env_prefix}${script}" ;;
-  *) echo "PANGOLIN_ELEVATE must be pkexec or sudo" >&2; exit 2 ;;
-esac
+exec "${elevate[@]}" /bin/sh -s <<<"${env_prefix}${script}"

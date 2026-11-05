@@ -80,6 +80,11 @@ In the bar settings, or in `~/.config/omarchy/shell.json`:
   which only root can see in `/proc/<pid>/environ`) and passes the script to
   the root shell on stdin. The widget never reads or shows process command
   lines.
+- It fails closed: if a Pangolin CLI update changes that format so the
+  credentials can't be moved (or passes them some other way, such as a renamed
+  flag), it refuses to connect and says so in the popup, rather than
+  connecting with the secret on the process list. If Pangolin itself starts
+  passing the script on stdin, that form is accepted as is.
 
 Set `PANGOLIN_BIN` in the shell's environment to use a CLI at another path.
 

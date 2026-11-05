@@ -158,8 +158,11 @@ Panel {
     stderr: StdioCollector { id: toggleErr; waitForEnd: true }
     onExited: function(code) {
       if (code !== 0) {
-        var msg = String(toggleErr.text).replace(/\x1b\[[0-9;]*m/g, "").trim().split("\n").pop()
-        root.lastError = code === 126
+        var lines = String(toggleErr.text).replace(/\x1b\[[0-9;]*m/g, "").trim().split("\n")
+        // Prefer the stand-in's own explanation over the CLI's generic error.
+        var refusal = lines.filter(function(l) { return l.indexOf("Not connecting:") === 0 })[0]
+        var msg = refusal || lines.pop()
+        root.lastError = refusal ? refusal : code === 126
           ? "Authentication cancelled"
           : (msg || ("pangolin " + root.pendingAction + " failed (" + code + ")"))
       }
