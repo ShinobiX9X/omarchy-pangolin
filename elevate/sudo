@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Stand-in for sudo, used only while pangolin-ctl.sh runs `pangolin up`.
+# Stand-in for sudo, put first on PATH only while `pangolin up` runs.
 #
 # The Pangolin CLI starts its root helper with exactly `sudo sh -c <command>`.
-# This shim forwards that one form to pkexec, so the password is asked in the
-# Omarchy polkit dialog instead of a terminal. Anything else is refused.
+# Anything else is refused (widget) or handed to the real sudo untouched
+# (terminal).
 #
 # The CLI puts the client ID and secret on the helper's command line
 # (`--id … --secret …`), where any local user can read them with `ps`.
@@ -11,9 +11,18 @@
 # so they are moved into environment variables (only readable by root in
 # /proc/<pid>/environ), and the script goes to the root shell on stdin
 # instead of on its command line.
+#
+# PANGOLIN_ELEVATE=pkexec  ask for the password with polkit (the bar widget)
+# PANGOLIN_ELEVATE=sudo    ask with the real sudo in the terminal (default)
 set -euo pipefail
 
+mode=${PANGOLIN_ELEVATE:-sudo}
+real_sudo=/usr/bin/sudo
+
 if [[ $# -ne 3 || "$1" != sh || "$2" != -c ]]; then
+  if [[ $mode == sudo ]]; then
+    exec "$real_sudo" "$@"
+  fi
   echo "pangolin widget: unexpected sudo call refused" >&2
   exit 1
 fi
@@ -35,5 +44,11 @@ move_to_env id PANGOLIN_CLIENT_ID
 move_to_env secret PANGOLIN_CLIENT_SECRET
 
 # Feed the script on stdin and exec, so this process's own command line (which
-# still holds the secret as passed by the CLI) is replaced right away.
-exec pkexec /bin/sh -s <<<"${env_prefix}${script}"
+# still holds the secret as passed by the CLI) is replaced right away. Both
+# pkexec and sudo ask for the password on their own channel (polkit agent,
+# /dev/tty), not on stdin.
+case $mode in
+  pkexec) exec pkexec /bin/sh -s <<<"${env_prefix}${script}" ;;
+  sudo) exec "$real_sudo" /bin/sh -s <<<"${env_prefix}${script}" ;;
+  *) echo "PANGOLIN_ELEVATE must be pkexec or sudo" >&2; exit 2 ;;
+esac

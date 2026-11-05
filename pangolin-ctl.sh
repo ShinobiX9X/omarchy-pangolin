@@ -44,7 +44,7 @@ case "${1:-}" in
     # `pangolin up` re-runs itself through `sudo sh -c ...`, which needs a
     # terminal. Put our sudo shim first in PATH so that step goes through
     # pkexec and the shell's polkit dialog instead.
-    PATH="$here/elevate:$PATH" exec "$bin" up --silent
+    PANGOLIN_ELEVATE=pkexec PATH="$here/elevate:$PATH" exec "$bin" up --silent
     ;;
   down)
     exec "$bin" down

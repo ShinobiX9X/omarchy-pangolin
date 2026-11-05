@@ -83,6 +83,24 @@ In the bar settings, or in `~/.config/omarchy/shell.json`:
 
 Set `PANGOLIN_BIN` in the shell's environment to use a CLI at another path.
 
+## Terminal use
+
+Running `pangolin up` yourself still puts the secret on the process list. To
+get the same protection there, install the small wrapper from `terminal/`. It
+uses the same stand-in, but asks for your password with the real `sudo` in the
+terminal:
+
+```bash
+# fish
+cp ~/.config/omarchy/plugins/io.github.shinobix9x.pangolin/terminal/pangolin.fish ~/.config/fish/functions/
+
+# bash: add to ~/.bashrc
+source ~/.config/omarchy/plugins/io.github.shinobix9x.pangolin/terminal/pangolin.bash
+```
+
+Only `pangolin up` is changed; every other subcommand runs as is. If the plugin
+is removed, the wrapper falls back to the plain CLI.
+
 ## License
 
 MIT
