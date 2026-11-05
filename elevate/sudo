@@ -4,6 +4,13 @@
 # The Pangolin CLI starts its root helper with exactly `sudo sh -c <command>`.
 # This shim forwards that one form to pkexec, so the password is asked in the
 # Omarchy polkit dialog instead of a terminal. Anything else is refused.
+#
+# The CLI puts the client ID and secret on the helper's command line
+# (`--id … --secret …`), where any local user can read them with `ps`.
+# The helper also reads them from PANGOLIN_CLIENT_ID / PANGOLIN_CLIENT_SECRET,
+# so they are moved into environment variables (only readable by root in
+# /proc/<pid>/environ), and the script goes to the root shell on stdin
+# instead of on its command line.
 set -euo pipefail
 
 if [[ $# -ne 3 || "$1" != sh || "$2" != -c ]]; then
@@ -11,4 +18,22 @@ if [[ $# -ne 3 || "$1" != sh || "$2" != -c ]]; then
   exit 1
 fi
 
-exec pkexec /bin/sh -c "$3"
+script=$3
+env_prefix=""
+
+# The CLI quotes each argument with Go's %q: "--secret" "value". Only move
+# values made of plain characters, so they can be single-quoted safely.
+move_to_env() {
+  local flag=$1 var=$2
+  local re="\"--${flag}\" \"([A-Za-z0-9._-]+)\""
+  if [[ $script =~ $re ]]; then
+    script=${script/"${BASH_REMATCH[0]}"/}
+    env_prefix+="export ${var}='${BASH_REMATCH[1]}' && "
+  fi
+}
+move_to_env id PANGOLIN_CLIENT_ID
+move_to_env secret PANGOLIN_CLIENT_SECRET
+
+# Feed the script on stdin and exec, so this process's own command line (which
+# still holds the secret as passed by the CLI) is replaced right away.
+exec pkexec /bin/sh -s <<<"${env_prefix}${script}"

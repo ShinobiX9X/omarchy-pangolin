@@ -73,6 +73,13 @@ In the bar settings, or in `~/.config/omarchy/shell.json`:
   it accepts only that exact `sh -c` form and hands it to `pkexec`, so you get
   the normal polkit password prompt. Nothing is installed system-wide and no
   sudoers or polkit rules are changed.
+- Credentials stay off the process list: on its own, `pangolin up` starts the
+  root client with `--id … --secret …` on its command line, readable by any
+  local user through `ps`. The stand-in moves those two values into
+  `PANGOLIN_CLIENT_ID` / `PANGOLIN_CLIENT_SECRET` (which the CLI reads, and
+  which only root can see in `/proc/<pid>/environ`) and passes the script to
+  the root shell on stdin. The widget never reads or shows process command
+  lines.
 
 Set `PANGOLIN_BIN` in the shell's environment to use a CLI at another path.
 
