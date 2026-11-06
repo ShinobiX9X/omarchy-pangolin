@@ -38,16 +38,21 @@ Panel {
     : busy ? "busy"
     : !isUp ? "off"
     : statusError !== "" ? "error"
-    : connected && registered ? "on"
-    : "connecting"
+    : !(connected && registered) ? "connecting"
+    // Logged in to the server, but no tunnel to any site (e.g. UDP blocked).
+    // Right after connecting the sites still need a few seconds.
+    : sites.length > 0 && sitesUp === 0 ? (settleTicks > 0 ? "connecting" : "nosites")
+    : "on"
   readonly property string stateText: ({
     "missing": "Pangolin CLI not found",
     "busy": pendingAction === "up" ? "Connecting…" : "Disconnecting…",
     "off": "Disconnected",
     "error": statusError,
-    "on": "Connected",
+    "nosites": "No site reachable",
+    "on": sitesUp < sites.length ? "Connected · " + sitesUp + "/" + sites.length + " sites" : "Connected",
     "connecting": "Connecting…"
   })[clientState]
+  readonly property bool warn: clientState === "error" || clientState === "nosites"
   readonly property int sitesUp: sites.filter(function(s) { return s.connected }).length
 
   readonly property color foreground: bar ? bar.foreground : Commons.Color.foreground
@@ -204,7 +209,7 @@ Panel {
     anchors.fill: parent
     bar: root.bar
     text: root.glyph
-    active: root.clientState === "error" || (root.lastError !== "" && !root.isUp)
+    active: root.warn || (root.lastError !== "" && !root.isUp)
     dimmed: root.clientState === "off" || root.clientState === "missing"
     tooltipText: root.opened ? "" : root.tooltip
     onPressed: function(buttonCode) {
@@ -270,7 +275,7 @@ Panel {
             iconComponent: Component {
               Text {
                 text: root.glyph
-                color: root.clientState === "error" ? root.urgent : root.foreground
+                color: root.warn ? root.urgent : root.foreground
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.display
               }
@@ -295,10 +300,12 @@ Panel {
 
           Text {
             textFormat: Text.PlainText
-            visible: root.lastError !== "" || root.clientState === "missing"
+            visible: root.lastError !== "" || root.clientState === "missing" || root.clientState === "nosites"
             width: parent.width
             text: root.clientState === "missing"
               ? "Install the Pangolin CLI (pangolin.net/downloads) and log in with `pangolin login`."
+              : root.clientState === "nosites"
+              ? "Logged in to Pangolin, but the tunnel to your sites isn't up. Networks that block UDP (some office or guest Wi-Fi) prevent it, even through the relay; try another network or a phone hotspot."
               : root.lastError
             color: root.urgent
             font.family: root.fontFamily
