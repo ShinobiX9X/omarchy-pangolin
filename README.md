@@ -92,8 +92,8 @@ list. To connect the same way as the widget from a terminal, install the small
 wrapper from `terminal/`. It asks for your password with `sudo`:
 
 ```bash
-# fish
-cp ~/.config/omarchy/plugins/io.github.shinobix9x.pangolin/terminal/pangolin.fish ~/.config/fish/functions/
+# fish: a small loader, so the wrapper always matches the installed plugin
+cp ~/.config/omarchy/plugins/io.github.shinobix9x.pangolin/terminal/pangolin-loader.fish ~/.config/fish/functions/pangolin.fish
 
 # bash: add to ~/.bashrc
 source ~/.config/omarchy/plugins/io.github.shinobix9x.pangolin/terminal/pangolin.bash

@@ -1,6 +1,6 @@
 # Keeps the client ID and secret off the process list when you run
 # `pangolin up` in a terminal (see "Terminal use" in the plugin README).
-# Install: cp pangolin.fish ~/.config/fish/functions/
+# Loaded by pangolin-loader.fish (install that one, see the README).
 function pangolin --wraps pangolin --description 'Pangolin CLI, with credentials kept out of ps on up'
     set -l ctl ~/.config/omarchy/plugins/io.github.shinobix9x.pangolin/pangolin-ctl.sh
     set -l args $argv
