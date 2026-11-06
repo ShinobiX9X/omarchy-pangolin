@@ -2,9 +2,11 @@
 # `pangolin up` in a terminal (see "Terminal use" in the plugin README).
 # Install: cp pangolin.fish ~/.config/fish/functions/
 function pangolin --wraps pangolin --description 'Pangolin CLI, with credentials kept out of ps on up'
-    set -l shim ~/.config/omarchy/plugins/io.github.shinobix9x.pangolin/elevate
-    if test "$argv[1]" = up; and test -x $shim/sudo
-        PANGOLIN_ELEVATE=sudo PATH="$shim:$PATH" command pangolin $argv
+    set -l ctl ~/.config/omarchy/plugins/io.github.shinobix9x.pangolin/pangolin-ctl.sh
+    set -l args $argv
+    test "$args[1]" = up; and test "$args[2]" = client; and set -e args[2]
+    if test "$args[1]" = up; and test -x $ctl; and not contains -- site $args; and not contains -- -h $args; and not contains -- --help $args
+        PANGOLIN_ELEVATE=sudo $ctl up $args[2..-1]; and command pangolin status
     else
         command pangolin $argv
     end

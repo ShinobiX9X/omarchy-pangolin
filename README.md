@@ -67,33 +67,29 @@ In the bar settings, or in `~/.config/omarchy/shell.json`:
 - Status: `pangolin status --json`, which reads the client's local socket.
   Nothing is sent over the network by the widget itself.
 - Disconnect: `pangolin down`.
-- Connect: `pangolin up --silent`. The CLI starts its root process with
-  `sudo sh -c …`, which needs a terminal. The widget puts a small `sudo`
-  stand-in ([`elevate/sudo`](elevate/sudo)) first on `PATH` for that one call;
-  it accepts only that exact `sh -c` form and hands it to `pkexec`, so you get
-  the normal polkit password prompt. Nothing is installed system-wide and no
-  sudoers or polkit rules are changed.
-- Credentials stay off the process list: on its own, `pangolin up` starts the
-  root client with `--id … --secret …` on its command line, readable by any
-  local user through `ps`. The stand-in moves those two values into
-  `PANGOLIN_CLIENT_ID` / `PANGOLIN_CLIENT_SECRET` (which the CLI reads, and
-  which only root can see in `/proc/<pid>/environ`) and passes the script to
-  the root shell on stdin. The widget never reads or shows process command
-  lines.
-- It fails closed: if a Pangolin CLI update changes that format so the
-  credentials can't be moved (or passes them some other way, such as a renamed
-  flag), it refuses to connect and says so in the popup, rather than
-  connecting with the secret on the process list. If Pangolin itself starts
-  passing the script on stdin, that form is accepted as is.
+- Connect: the widget starts the root client itself, the way
+  `sudo pangolin up --attach` runs. [`pangolin-ctl.sh`](pangolin-ctl.sh)
+  passes a short script on stdin to `pkexec /bin/sh -s` (the normal polkit
+  password prompt) that sets `SUDO_USER` to you and starts
+  `pangolin up client --attach` in the background. Running as root with
+  `SUDO_USER` set, the CLI reads your login and client credentials from your
+  own Pangolin config. Nothing is installed system-wide and no sudoers or
+  polkit rules are changed.
+- Why not plain `pangolin up`: it starts its root helper with the client ID
+  and secret as command-line arguments (`sudo sh -c "… --id … --secret …"`),
+  which any local account can read with `ps`, even if only for a moment. On
+  the path above, no credentials are passed to any process at all; the widget
+  never reads or shows process command lines.
+- If the client doesn't come up within a few seconds, the popup shows the last
+  error from the client's log (`~/.config/pangolin/logs/client.log`).
 
 Set `PANGOLIN_BIN` in the shell's environment to use a CLI at another path.
 
 ## Terminal use
 
-Running `pangolin up` yourself still puts the secret on the process list. To
-get the same protection there, install the small wrapper from `terminal/`. It
-uses the same stand-in, but asks for your password with the real `sudo` in the
-terminal:
+Running `pangolin up` yourself still briefly puts the secret on the process
+list. To connect the same way as the widget from a terminal, install the small
+wrapper from `terminal/`. It asks for your password with `sudo`:
 
 ```bash
 # fish
@@ -103,8 +99,9 @@ cp ~/.config/omarchy/plugins/io.github.shinobix9x.pangolin/terminal/pangolin.fis
 source ~/.config/omarchy/plugins/io.github.shinobix9x.pangolin/terminal/pangolin.bash
 ```
 
-Only `pangolin up` is changed; every other subcommand runs as is. If the plugin
-is removed, the wrapper falls back to the plain CLI.
+Only `pangolin up` / `pangolin up client` (with any of its flags) is changed;
+`up site`, `--help` and every other subcommand run as is. If the plugin is
+removed, the wrapper falls back to the plain CLI.
 
 ## License
 
