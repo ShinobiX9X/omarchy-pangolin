@@ -81,7 +81,10 @@ In the bar settings, or in `~/.config/omarchy/shell.json`:
   the path above, no credentials are passed to any process at all; the widget
   never reads or shows process command lines.
 - If the client doesn't come up within a few seconds, the popup shows the last
-  error from the client's log (`~/.config/pangolin/logs/client.log`).
+  error from the client's log (`~/.config/pangolin/logs/client.log`). Before
+  connecting, the widget makes that log folder private (`chmod 700`), because
+  with `--log-level debug` the client writes its secret and session tokens to
+  the log.
 
 Set `PANGOLIN_BIN` in the shell's environment to use a CLI at another path.
 

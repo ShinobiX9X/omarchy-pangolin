@@ -81,7 +81,15 @@ case "${1:-}" in
     user=$(id -un)
     log_dir="${XDG_CONFIG_HOME:-$HOME/.config}/pangolin/logs"
     log="$log_dir/client.log"
+    # With --log-level debug the client logs its secret and session tokens,
+    # and root writes these files with its own umask. Keep the whole log
+    # folder private to this user, or don't start.
     mkdir -p "$log_dir"
+    if ! chmod 700 "$log_dir"; then
+      echo "Can't make $log_dir private; not starting the client." >&2
+      exit 1
+    fi
+    [[ -e $log ]] || (umask 077 && : >>"$log")
 
     script="export SUDO_USER=$(shell_quote "$user") && nohup $(shell_quote "$bin") up client --attach"
     for arg in "${extra[@]}"; do script+=" $(shell_quote "$arg")"; done
