@@ -29,8 +29,14 @@ shell_quote() {
   printf "'%s'" "$s"
 }
 
+# The client status as JSON, or nothing. The CLI can print other text first
+# (such as "A new version is available"), so start at the first `{` line.
+status_json() {
+  "$bin" status --json 2>/dev/null | sed -n '/^{/,$p'
+}
+
 is_running() {
-  [[ "$("$bin" status --json 2>/dev/null)" == \{* ]]
+  [[ -n "$(status_json)" ]]
 }
 
 bin="$(find_pangolin)" || {
@@ -41,8 +47,8 @@ bin="$(find_pangolin)" || {
 
 case "${1:-}" in
   status)
-    out="$("$bin" status --json 2>/dev/null)"
-    if [[ "$out" == \{* ]]; then
+    out="$(status_json)"
+    if [[ -n "$out" ]]; then
       # Collapse to one line so the widget can parse it in one go.
       printf '%s\n' "$out" | tr -d '\n'
       echo
@@ -110,7 +116,7 @@ case "${1:-}" in
       is_running && exit 0
       sleep 0.5
     done
-    last=$(tail -n 20 "$log" 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' | grep -iE 'error|fatal|failed' | tail -n 1)
+    last=$(tail -n 20 "$log" 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' | grep -E '^(ERROR|FATAL)' | tail -n 1)
     echo "The Pangolin client didn't start${last:+: $last}" >&2
     exit 1
     ;;
