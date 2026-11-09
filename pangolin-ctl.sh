@@ -96,6 +96,8 @@ case "${1:-}" in
       exit 1
     fi
     [[ -e $log ]] || (umask 077 && : >>"$log")
+    # Only this attempt's log lines count when reporting why it failed.
+    log_start=$(( $(stat -c %s "$log" 2>/dev/null || echo 0) + 1 ))
 
     script="export SUDO_USER=$(shell_quote "$user") && nohup $(shell_quote "$bin") up client --attach"
     for arg in "${extra[@]}"; do script+=" $(shell_quote "$arg")"; done
@@ -116,7 +118,11 @@ case "${1:-}" in
       is_running && exit 0
       sleep 0.5
     done
-    last=$(tail -n 20 "$log" 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' | grep -E '^(ERROR|FATAL)' | tail -n 1)
+    # Log lines look like "ERROR: <date> <time> msg"; the CLI itself prints
+    # "Error: msg" before it exits.
+    last=$(tail -c "+$log_start" "$log" 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' \
+      | grep -E '^(ERROR|FATAL|Error):' | tail -n 1 \
+      | sed -E 's/^(ERROR|FATAL): [0-9/]+ [0-9:]+ /\1: /')
     echo "The Pangolin client didn't start${last:+: $last}" >&2
     exit 1
     ;;
