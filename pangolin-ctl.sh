@@ -128,7 +128,19 @@ case "${1:-}" in
     ;;
 
   down)
-    exec "$bin" down
+    # In a terminal, let the CLI show its own progress.
+    [[ -t 1 ]] && exec "$bin" down
+    # Without a terminal, `pangolin down` sends the stop request and then
+    # fails to draw its progress spinner ("could not open a new TTY"), so its
+    # exit code says nothing. Check that the client actually stopped.
+    is_running || { echo "No Pangolin client is running." >&2; exit 1; }
+    out=$("$bin" down </dev/null 2>&1)
+    for _ in $(seq 1 20); do
+      is_running || exit 0
+      sleep 0.5
+    done
+    echo "The Pangolin client didn't stop: $(printf '%s\n' "$out" | sed 's/\x1b\[[0-9;]*m//g' | grep -v '^[[:space:]]*$' | tail -n 1)" >&2
+    exit 1
     ;;
 
   *)
