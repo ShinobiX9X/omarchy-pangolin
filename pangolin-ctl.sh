@@ -114,12 +114,12 @@ nohup $(shell_quote "$bin") up client --attach"
     script+=" >>$(shell_quote "$log") 2>&1 </dev/null &
 pid=\$!
 i=0
-while [ \$i -lt 1500 ] && kill -0 \$pid 2>/dev/null; do
+while [ \$i -lt 3000 ] && kill -0 \$pid 2>/dev/null; do
   if [ -S \"\$sock\" ] && [ \"\$(stat -c %i \"\$sock\" 2>/dev/null)\" != \"\$old\" ]; then
     chown $q_user \"\$sock\" && chmod 600 \"\$sock\" && exit 0
     kill \$pid; echo 'Could not make the client socket private; client stopped.' >&2; exit 3
   fi
-  sleep 0.02; i=\$((i + 1))
+  sleep 0.01; i=\$((i + 1))
 done
 kill -0 \$pid 2>/dev/null || exit 0
 kill \$pid; echo 'The client socket did not appear; client stopped.' >&2; exit 3
