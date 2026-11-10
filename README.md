@@ -75,6 +75,11 @@ In the bar settings, or in `~/.config/omarchy/shell.json`:
   `SUDO_USER` set, the CLI reads your login and client credentials from your
   own Pangolin config. Nothing is installed system-wide and no sudoers or
   polkit rules are changed.
+- The client's control socket (`/var/run/olm.sock`) is created open to every
+  local account (mode 0666), and the client doesn't check who connects, so
+  any account could stop or reconfigure it. The same root script waits for
+  the socket and makes it yours alone (mode 600); status and disconnect keep
+  working without a password. If that fails, it stops the client again.
 - Why not plain `pangolin up`: it starts its root helper with the client ID
   and secret as command-line arguments (`sudo sh -c "… --id … --secret …"`),
   which any local account can read with `ps`, even if only for a moment. On

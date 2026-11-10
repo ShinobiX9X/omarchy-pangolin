@@ -99,9 +99,31 @@ case "${1:-}" in
     # Only this attempt's log lines count when reporting why it failed.
     log_start=$(( $(stat -c %s "$log" 2>/dev/null || echo 0) + 1 ))
 
-    script="export SUDO_USER=$(shell_quote "$user") && nohup $(shell_quote "$bin") up client --attach"
+    # The client's control socket is created world-writable (0666) and
+    # doesn't check who connects, so any local account could stop or
+    # reconfigure the root client. As soon as the new socket appears, make
+    # it this user's alone (root still has access); if that fails, stop the
+    # client rather than leave it open.
+    sock=/var/run/olm.sock
+    q_user=$(shell_quote "$user")
+    script="sock=$sock
+old=\$(stat -c %i \"\$sock\" 2>/dev/null)
+export SUDO_USER=$q_user
+nohup $(shell_quote "$bin") up client --attach"
     for arg in "${extra[@]}"; do script+=" $(shell_quote "$arg")"; done
-    script+=" >>$(shell_quote "$log") 2>&1 </dev/null &"
+    script+=" >>$(shell_quote "$log") 2>&1 </dev/null &
+pid=\$!
+i=0
+while [ \$i -lt 1500 ] && kill -0 \$pid 2>/dev/null; do
+  if [ -S \"\$sock\" ] && [ \"\$(stat -c %i \"\$sock\" 2>/dev/null)\" != \"\$old\" ]; then
+    chown $q_user \"\$sock\" && chmod 600 \"\$sock\" && exit 0
+    kill \$pid; echo 'Could not make the client socket private; client stopped.' >&2; exit 3
+  fi
+  sleep 0.02; i=\$((i + 1))
+done
+kill -0 \$pid 2>/dev/null || exit 0
+kill \$pid; echo 'The client socket did not appear; client stopped.' >&2; exit 3
+"
 
     case ${PANGOLIN_ELEVATE:-pkexec} in
       pkexec) pkexec /bin/sh -s <<<"$script" ;;
